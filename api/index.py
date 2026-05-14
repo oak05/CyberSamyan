@@ -3,7 +3,9 @@ import datetime
 import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from datetime import datetime
+import httpx, platform, sys
 
 # Configure Vercel-compatible logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -52,6 +54,10 @@ DASHBOARD = """
 </body>
 </html>
 """
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def dashboard():
+    return DASHBOARD
 
 # Allow requests from chrome-extension:// origins
 app.add_middleware(
@@ -173,3 +179,6 @@ async def clear_data():
 @app.get("/health")
 async def health():
     return {"status": "ok", "captured": len(captured)}
+
+from mangum import Mangum
+handler = Mangum(app, lifespan="off")
