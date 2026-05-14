@@ -152,7 +152,7 @@ async def ingest(request: Request):
     payload = obj.get("payload", {})
     run_id  = str(obj.get("run", "?"))[:8]
     ts_raw  = obj.get("ts", 0)
-    ts      = datetime.datetime.fromtimestamp(ts_raw / 1000).strftime("%H:%M:%S")
+    ts      = datetime.fromtimestamp(ts_raw / 1000).strftime("%H:%M:%S")
     color   = KIND_COLOR.get(kind, CYAN)
 
     # Log the summary format to Vercel
