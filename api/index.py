@@ -10,6 +10,49 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 app = FastAPI(title="Mock C2", docs_url="/docs")
 
+# ── HTML dashboard ────────────────────────────────────────────────────────
+DASHBOARD = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FastAPI Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }
+  h1   { font-size: 1.8rem; color: #38bdf8; margin-bottom: 0.25rem; }
+  p.sub { color: #64748b; margin-bottom: 2rem; font-size: 0.9rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .card { background: #1e293b; border-radius: 10px; padding: 1.25rem; }
+  .card h2 { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+  .card p  { font-size: 1.5rem; font-weight: 700; color: #38bdf8; margin-top: 0.25rem; }
+  table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
+  th, td { padding: 0.75rem 1rem; text-align: left; font-size: 0.875rem; }
+  th { background: #0f172a; color: #64748b; font-weight: 600; }
+  tr:not(:last-child) td { border-bottom: 1px solid #0f172a; }
+  a  { color: #38bdf8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<h1>FastAPI Dashboard</h1>
+<p class="sub">Deployed on Vercel &mdash; <span id="ts"></span></p>
+<div class="grid">
+  <div class="card"><h2>Status</h2><p>&#x2705; Online</p></div>
+  <div class="card"><h2>Framework</h2><p>FastAPI</p></div>
+  <div class="card"><h2>Platform</h2><p>Vercel</p></div>
+</div>
+<table>
+  <tr><th>Endpoint</th><th>Method</th><th>Description</th></tr>
+  <tr><td><a href="/api/health">/api/health</a></td><td>GET</td><td>Health check + server info</td></tr>
+  <tr><td><a href="/api/headers-check?url=https://example.com">/api/headers-check</a></td><td>GET</td><td>Check HTTP security headers of a URL</td></tr>
+  <tr><td><a href="/api/docs">/api/docs</a></td><td>GET</td><td>Swagger UI</td></tr>
+</table>
+<script>document.getElementById("ts").textContent = new Date().toLocaleString();</script>
+</body>
+</html>
+"""
+
 # Allow requests from chrome-extension:// origins
 app.add_middleware(
     CORSMiddleware,
